@@ -1,0 +1,422 @@
+---
+title: "Data Mining HW3"
+output: html_document
+author: Michael Izzo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+1A. What are the parameters needed to specify the LDA and QDA models
+respectively? What are their estimated values using the training data?
+(Hint: Note that there is only one input variable, so you dont need to worry
+about covariance, but you do need to consider the effect of the variance of
+x.)
+
+For LDA p=1, k=2: There are (k-1)(p+1) = 2 numbers of paramters. The paramters are the 
+$ \hat{\mu_c} 's, \hat{\pi_c}, \hat{\sigma}^2$
+For QDA p=1, k=2: There are (k-1)(p(p+3)/2 + 1) = 3 number of paramters. 
+$ \hat{\mu_c} 's, \hat{\pi_c}, \hat{\sigma}^2$
+```{r}
+library(MASS)
+library(gridExtra)
+y<- c(-1, -1, -1, -1, 1, 1, 1, 1, 1)
+x <- c(-3, -2, 0, 1, -1, 2, 3, 4, 5)
+train<- data.frame(x, y)
+train$y <-as.factor(train$y)
+
+lda_mod = lda(formula=y~x,data=train)
+```
+
+```{r}
+#lda_mod$svd^2/sum(lda_mod$svd^2)
+print('Priors aka PIs of LDA')
+lda_mod$prior
+print('Means of LDA')
+lda_mod$means
+print('Standard Deviation of LDA')
+ 
+poolvar <- (var(train$x[1:4])*3+var(train$x[5:9])*4)/(4+5-2)
+poolvar
+standdev = sqrt(poolvar)
+standdev
+```
+
+```{r}
+standev1<- sqrt(var(train$x[1:4]))
+standev2<- sqrt(var(train$x[5:9]))
+print("Standard Deviation of QDA")
+standev1
+standev2
+
+```
+It is resonable to assume that the variance of the two samples are equal.
+
+
+```{r}
+qda_mod = qda(formula=y~x,data=train)
+summary(qda_mod)
+qda_mod$prior
+```
+```{r}
+print('Priors aka Pis of QDA')
+qda_mod$prior
+print('Means of QDA')
+qda_mod$means
+print('Standard Deviation of QDA')
+qda_mod$scaling
+```
+1B. Write down the discriminant functions (See the lecture notes).
+Linear Discriminant Functions if P=1
+$$
+\delta_c(x_0) = \frac{x_0\mu_c}{\sigma^2} - \frac{\mu_c^2}{2\sigma^2} + log(\pi_c)
+$$
+Quadratic Discriminant Functions
+$$
+\delta_c(x_0) = log(\pi_c) - \frac{1}{2}log det\sum_c - \frac{1}{2}(x_0 -\mu_c)\sum_c ^{-1}(x_o - \mu_c)\\
+$$
+If P = 1
+$$
+-log(\sigma_c)- \frac{(x_0- \mu_c)^2}{2\sigma_c^2} + log(\pi_c)
+$$
+1C.  Compute the training errors using LDA and QDA respectively, i.e., the
+misclassication error when applying your classier to the training data? (You
+can either use the built in R functions or write your own based on the
+previous answer).
+```{r}
+train_pred_lda = predict(lda_mod)$class
+train_pred_qda = predict(qda_mod)$class
+#install.packages("caret")
+library(caret)
+#train_conf = confusionMatrix(data=train_pred,reference=train_data$label)
+#str(train$y)
+#str(train_pred_lda)
+
+train_conf_lda = confusionMatrix(data= train_pred_lda, reference= train$y)
+train_conf_qda = confusionMatrix(data= train_pred_qda, reference=train$y)
+print("Confusion Matix for LDA Train Data")
+train_conf_lda$table
+```
+```{r}
+print("Confusion Matrix for QDA Train Data")
+train_conf_qda$table
+```
+Train Error of LDA
+
+```{r}
+train_mets = train_conf_lda$overall
+train_acc = train_mets["Accuracy"]
+train_err = 1-train_acc
+names(train_err) = "Train Err for LDA"
+train_err
+```
+Train Error of QDA
+```{r}
+train_mets = train_conf_qda$overall
+train_acc = train_mets["Accuracy"]
+train_err = 1-train_acc
+names(train_err) = "Train Err for QDA"
+train_err
+```
+
+1D. Given a test set of (x,y) pairs
+x -1.5 -1 0 1 0.5 1 2.5 5
+y -1 -1 -1 -1 1 1 1 1
+what are the test errors?
+```{r}
+y<-  c(-1  , -1,-1,-1,  1, 1, 1, 1)
+x <- c(-1.5, -1, 0, 1, .5, 1, 2, 5)
+test<- data.frame(x, y)
+test$y <-as.factor(test$y)
+test_pred_lda = predict(lda_mod,newdata=test)$class
+test_pred_qda = predict(qda_mod,newdata=test)$class
+
+test_conf_lda = confusionMatrix(data=test_pred_lda,reference=test$y)
+print("Confusion Matrix of LDA Test Data")
+test_conf_lda$table
+```
+
+```{r}
+test_mets = test_conf_lda$overall
+test_acc = test_mets["Accuracy"]
+test_err = 1-test_acc
+names(test_err) = "Test Err for LDA"
+test_err
+```
+
+```{r}
+test_conf_qda = confusionMatrix(data=test_pred_qda,reference=test$y)
+print("Confusion Matrix of QDA Test Data")
+test_conf_qda$table
+```
+
+
+
+```{r}
+test_mets = test_conf_qda$overall
+test_acc = test_mets["Accuracy"]
+test_err = 1-test_acc
+names(test_err) = "Test Err for QDA"
+test_err
+```
+
+1E. Which is more suitable for this (training) dataset, LDA or QDA? Justify
+your answer.
+
+These two models produce nearly identical results and have very simlar variances. This would mean that the LDA would be preferable because it is a simpler model. 
+
+2. In this problem, you will develop a model to predict whether a given car gets
+high or low gas mileage based on the Auto data set.
+2A.Create a binary variable, mpg01, that contains a 1 if mpg contains a value above its median, and a 0 if mpg contains a value below its median. Youcan compute the median using the median() function. Note you may find it helpful to use the data.frame() function to create a single data set containing both mpg01 and the other Auto variables.
+```{r}
+library(MASS)
+#install.packages("ISLR")
+library(ISLR)
+#install.packages("ggplot2")
+library(ggplot2)
+data1<- data.frame(Auto)
+
+```
+
+```{r}
+summary(data1)
+str(data1$mpg)
+head(data1$mpg)
+mean(data1$mpg)
+data1$mpg01 <- as.numeric(data1$mpg >= median(data1$mpg))
+```
+
+```{r}
+str(data1)
+mod1 <- glm(formula = mpg01~ cylinders+displacement+horsepower+weight+acceleration+year+origin, data = data1, family = "binomial")
+#hist(data1$mpg01,data1$weight)
+ggplot(data = data1) +
+  geom_histogram(mapping = aes(x = weight), bins = 10)
+```
+2B.
+```{r}
+print("MPG01 VS Horsepower Analysis")
+p1<- ggplot(data1, aes(x = horsepower, y = mpg01)) + geom_point()
+p2<- ggplot(data1, aes(x = mpg01, y= horsepower, group = mpg01)) + geom_boxplot()
+
+grid.arrange(p1, p2, ncol= 2)
+
+```
+
+
+
+```{r}
+print("MPG01 VS Weight Analysis")
+p1<- ggplot(data1, aes(x = weight, y = mpg01)) + geom_point()
+p2<- ggplot(data1, aes(x = mpg01, y= weight, group = mpg01)) + geom_boxplot()
+grid.arrange(p1, p2, ncol= 2)
+
+```
+
+
+```{r}
+print("MPG01 VS Acceleration Analysis")
+p1<- ggplot(data1, aes(x = acceleration, y = mpg01)) + geom_point()
+p2<- ggplot(data1, aes(x = mpg01, y= acceleration, group = mpg01)) + geom_boxplot()
+grid.arrange(p1, p2, ncol= 2)
+
+```
+ Acceleration does not really show strong signals 
+```{r}
+print("MPG01 VS Displacement Analysis")
+p1<- ggplot(data1, aes(x = displacement, y = mpg01)) + geom_point()
+p2<- ggplot(data1, aes(x = mpg01, y= displacement, group = mpg01)) + geom_boxplot()
+grid.arrange(p1, p2, ncol= 2)
+```
+
+```{r}
+print("MPG01 VS Cylinders Analysis")
+p2<- ggplot(data1,aes(x=cylinders))+geom_histogram(binwidth = 1)+facet_grid(~mpg01)+theme_bw()
+p2
+```
+
+```{r}
+print("MPG01 VS Origin Analysis")
+#p1<- ggplot(data1, aes(x = cylinders, y = mpg01)) + geom_point()
+p2<- ggplot(data1,aes(x=origin))+geom_histogram(binwidth = 1)+facet_grid(~mpg01)+theme_bw()
+p2
+#grid.arrange(p1, p2, ncol= 2)
+```
+
+It is clear that of the continuous features in this dataset, that 'horsepower', 'weight', and 'displacement' look to have a relationship with 'mpg01'. 
+
+2C.  Split the data into a training set and a test set.
+```{r}
+library(MASS)
+```
+
+```{r}
+set.seed(453)
+randomizerows <- sample(1:nrow(data1))
+train_set1 <- randomizerows[1:(length(randomizerows))/2]
+train_data1 = data1[train_set1,]
+test_set1 <- setdiff(randomizerows,train_set1)
+test_data1 <- data1[test_set1,]
+#LDA MODEL
+lda_modl = lda(formula= mpg01~ displacement + horsepower+weight,data=train_data1)
+summary(lda_modl)
+train_pred1 = predict(lda_modl)$class
+test_pred1 = predict(lda_modl,newdata=test_data1)$class
+#levels(train_pred)
+#levels(test_pred)
+train_data1$mpg01 = factor(train_data1$mpg01)
+test_data1$mpg01 = factor(test_data1$mpg01)
+#length(test_data1$mpg01)
+#length(train_data1$mpg01)
+#length(train_pred1)
+library(caret)
+print("Confusion Matix for LDA Train Data")
+train_conf_lda1 = confusionMatrix(data = train_pred1, reference = train_data1$mpg01)
+train_conf_lda1$table
+
+```
+
+```{r}
+print("Confusion Matix for LDA Test Data")
+test_conf_lda1 = confusionMatrix(data = test_pred1, reference = test_data1$mpg01)
+test_conf_lda1$table
+```
+2D. What is the test error of the model obtained?
+
+```{r}
+train_mets1 = train_conf_lda1$overall
+train_acc1 = train_mets1["Accuracy"]
+train_err1 = 1-train_acc1
+names(train_err1) = "Train Err for LDA"
+train_err1
+```
+
+
+```{r}
+test_mets1 = test_conf_lda1$overall
+test_acc1 = test_mets1["Accuracy"]
+test_err1 = 1-test_acc1
+names(test_err1) = "Test Err for LDA"
+test_err1
+```
+
+The test error of the model is 0.0969
+
+2E.Perform QDA on the training data in order to predict mpg01 using thevariables that seemed most associated with mpg01 in (b). What is the test error of the model obtained?
+
+```{r}
+
+qda_modl = qda(formula= mpg01~ displacement + horsepower+weight,data=train_data1)
+summary(qda_modl)
+
+
+train_pred1 = predict(qda_modl)$class
+test_pred1 = predict(qda_modl,newdata=test_data1)$class
+#levels(train_pred)
+#levels(test_pred)
+#train_data1$mpg01 = factor(train_data1$mpg01)
+#test_data1$mpg01 = factor(test_data1$mpg01)
+#length(test_data1$mpg01)
+#length(train_data1$mpg01)
+#length(train_pred1)
+#library(caret)
+print("Confusion Matix for LDA Train Data")
+train_conf_qda1 = confusionMatrix(data = train_pred1, reference = train_data1$mpg01)
+train_conf_qda1$table
+
+```
+
+```{r}
+print("Confusion Matix for QDA Test Data")
+test_conf_qda1 = confusionMatrix(data = test_pred1, reference = test_data1$mpg01)
+test_conf_qda1$table
+```
+1D. What is the test error of the model obtained?
+
+```{r}
+train_mets1 = train_conf_qda1$overall
+train_acc1 = train_mets1["Accuracy"]
+train_err1 = 1-train_acc1
+names(train_err1) = "Train Err for QDA"
+train_err1
+```
+
+
+```{r}
+test_mets1 = test_conf_qda1$overall
+test_acc1 = test_mets1["Accuracy"]
+test_err1 = 1-test_acc1
+names(test_err1) = "Test Err for QDA"
+test_err1
+```
+
+Test Error for the QDA model is .10714.
+
+2F. Perform logistic regression on the training data in order to predict mpg01 using the variables that seemed most associated with mpg01 in (b). What is the test error of the model obtained?
+
+```{r}
+#LOGISTIC REGRESSION
+logreg = glm(formula= mpg01~ displacement + horsepower+weight,data=train_data1, family = "binomial")
+
+summary(logreg)
+train_pred3 <- predict(logreg, type = "response")
+train_pred3 = (train_pred3 > .5)*1
+levels(train_data1$mpg01)
+train_pred3 = factor(train_pred3,labels=c("0","1"))
+```
+
+```{r}
+print("Confusion Matix for Logistic Regression Train Data")
+
+train_conf3 = confusionMatrix(data=train_pred3,reference=train_data1$mpg01)
+train_conf3$table
+```
+
+```{r}
+
+test_pred4 = factor( (predict(logreg ,newdata= test_data1, type = "response") > .5)*1)
+test_error_logreg = mean(test_pred4 != test_data1$mpg01)
+
+test_conf4 = confusionMatrix(data=test_pred4,reference=test_data1$mpg01)
+test_conf4$table
+test_error_logreg
+```
+The test error for the Logistic Regression Model is .0765
+
+
+2G. Perform KNN on the training data, with several values of K, in order to
+predict mpg01. Use only the variables that seemed most associated with
+mpg01 in (b). What test errors do you obtain? 
+
+```{r}
+#install.packages("FNN")
+library('FNN')
+library(class)
+```
+
+
+```{r}
+ktestErrors = rep(0,30)
+for( value in 1:30) {
+  predicted = knn_mod1 = knn(train = train_data1[,c("weight","displacement","horsepower")], test = test_data1[,c("weight","displacement","horsepower")], cl = train_data1[,"mpg01"], k = value)
+  test_conf = confusionMatrix(data = predicted, reference = test_data1[,"mpg01"])
+  mets1 = test_conf$overall
+  acc1 = mets1["Accuracy"]
+  err1 = 1-acc1
+  names(train_err1) = "Train Err for K"
+  ktestErrors[value] = err1
+}
+plot(ktestErrors)
+```
+
+```{r}
+which.min(ktestErrors)
+min(ktestErrors)
+#sort(ktestErrors)
+```
+
+It appears that the minimum test error of K Regression is at K =10 with a value of .0969.
+
+
